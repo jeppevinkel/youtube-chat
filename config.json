@@ -1,0 +1,7 @@
+{
+  "video_id": "KyEBvj56KK4",
+  "open_vr_notification_pipe": {
+    "host": "ws://localhost",
+    "port": 8077
+  }
+}
