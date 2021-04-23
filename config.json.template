@@ -1,0 +1,12 @@
+{
+  "video_id": "XXXXXXXX",
+  "open_vr_notification_pipe": {
+    "host": "ws://localhost",
+    "port": 8077
+  },
+  "discord_integration": {
+    "enabled": true,
+    "log_interval": 5000,
+    "webhook": "https://discord.com/api/webhooks/XXXXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXX"
+  }
+}

@@ -17,6 +17,7 @@ import {drawRoundedImage} from "./modules/utils";
 const privateMessageConfig = require('../notifications/privateMessage.json');
 const config = require("../config.json");
 const secrets = require("../secrets.json");
+import * as moment from 'moment';
 
 let _websocket;
 let _clearCacheInterval;
@@ -24,8 +25,30 @@ let active: Boolean = false;
 let nextPageToken = "";
 let initialized: Boolean = false;
 let channelTitle: String|null = null;
+let _messages = [];
+
+let discordInterval: NodeJS.Timeout;
 
 connectLoop();
+
+if (config.discord_integration.enabled) {
+    discordInterval = setInterval(sendLog, config.discord_integration.log_interval);
+}
+
+function sendLog() {
+    if (!_messages.length) return;
+    let content = _messages.join('\n');
+
+    fetch(config.discord_integration.webhook, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({"content": content})
+    }).catch(r => console.log(r));
+
+    _messages = [];
+}
 
 function connectLoop()
 {
@@ -104,17 +127,23 @@ async function getNewChat() {
             }
             if(json.items) {
                 for (const item of json.items) {
-                    pushMessage({
+                    let message = {
                         displayName: item.authorDetails.displayName,
                         messageContent: item.snippet.displayMessage,
                         username: item.authorDetails.displayName,
+                        publishedAt: item.snippet.publishedAt,
                         tags: {
                             color: "#de4646",
                             displayName: item.authorDetails.displayName,
                             channelId: item.authorDetails.channelId,
+                            isModerator: item.authorDetails.isChatModerator,
+                            isStreamer: item.authorDetails.isChatOwner,
+                            isSponsor: item.authorDetails.isChatSponsor
                         }
-                    }, item.authorDetails.profileImageUrl);
-                    console.log(item.authorDetails.profileImageUrl);
+                    };
+
+                    pushMessage(message, item.authorDetails.profileImageUrl);
+                    pushDiscordMessage(message);
                     console.log(item.authorDetails.displayName + ": " + item.snippet.displayMessage);
                 }
             }
@@ -182,4 +211,26 @@ async function pushMessage(message, profileImageUrl: string = undefined) {
             _websocket.send(JSON.stringify(msgValues));
         });
     });
+}
+
+function pushDiscordMessage(message) {
+    let dt = moment(message.tags.publishedAt);
+    let meta = `[#${channelTitle}][${dt.format('HH:mm')}]`;
+
+    // Checks
+    let isBroadcaster = message.tags.isStreamer;
+    let isSub = (isBroadcaster || message.tags.isSponsor);
+
+    // Badges
+    let subBadge = isSub ? `[💸]`:'';
+    let modBadge = message.tags.isModerator ? '[🛡️]':'';
+    let broadcasterBadge = isBroadcaster ? '[📣]':'';
+
+    // Name
+    let displayName = message.displayName;
+    if(isBroadcaster) displayName = `**${displayName}**`; // Bold broadcaster
+
+    let combined = `${meta} ${subBadge}${modBadge}${broadcasterBadge} ${displayName}: ${message.messageContent}`;
+
+    _messages.push(combined);
 }
