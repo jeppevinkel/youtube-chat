@@ -19,6 +19,11 @@ const config = require("../config.json");
 const secrets = require("../secrets.json");
 import * as moment from 'moment';
 
+let botList: String[] = [
+    "nightbot",
+    "cloudbot"
+];
+
 let _websocket;
 let _clearCacheInterval;
 let active: Boolean = false;
@@ -127,6 +132,7 @@ async function getNewChat() {
             }
             if(json.items) {
                 for (const item of json.items) {
+                    if (botList.includes(item.authorDetails.displayName.toLowerCase())) continue;
                     let message = {
                         displayName: item.authorDetails.displayName,
                         messageContent: item.snippet.displayMessage,
@@ -154,6 +160,8 @@ async function getNewChat() {
 async function pushMessage(message, profileImageUrl: string = undefined) {
     let msgValues: ICustomNotification = privateMessageConfig.style;
     msgValues.custom = true;
+
+    if (message.messageContent[0] == "!") return;
 
     const bg = await loadImage(privateMessageConfig.message.background);
     const canvas = createCanvas(bg.width, bg.height);
